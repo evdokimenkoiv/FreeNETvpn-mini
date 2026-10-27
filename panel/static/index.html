@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>FreeNETvpn-mini — панель узла</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="FreeNETvpn-mini, обновить страницу">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span>FREENET<span class="brand-dim">/MINI</span></span>
+    </a>
+    <div class="local-badge"><span class="status-dot active"></span>LOCAL CONTROL</div>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="section-label">VPN OPERATIONS / 01</p>
+        <h1 id="page-title">Сетевой узел</h1>
+        <p class="host-line" id="server-host">Получение данных…</p>
+      </div>
+      <div class="sync-block">
+        <span class="section-label">ПОСЛЕДНИЙ ОПРОС</span>
+        <span id="sync-time">—</span>
+      </div>
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+    <div class="dashboard-grid">
+      <section class="panel services-panel" aria-labelledby="services-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">SYSTEMD / LIVE</p>
+            <h2 id="services-title">Сервисы</h2>
+          </div>
+          <span class="panel-index">02</span>
+        </div>
+
+        <article class="service-row" id="wireguard-row">
+          <div class="service-main">
+            <span class="status-dot" id="wireguard-dot"></span>
+            <div>
+              <h3>WireGuard</h3>
+              <p id="wireguard-meta">wg-quick@wg0</p>
+            </div>
+          </div>
+          <div class="service-stats">
+            <span id="wireguard-status" class="status-text">Проверка</span>
+            <span id="wireguard-traffic">RX — / TX —</span>
+          </div>
+          <button class="action-button" type="button" data-restart="wireguard">Перезапустить</button>
+        </article>
+
+        <article class="service-row" id="vless-row">
+          <div class="service-main">
+            <span class="status-dot" id="vless-dot"></span>
+            <div>
+              <h3>VLESS REALITY</h3>
+              <p id="vless-meta">freenetvpn-xray</p>
+            </div>
+          </div>
+          <div class="service-stats">
+            <span id="vless-status" class="status-text">Проверка</span>
+            <span id="xray-version">Xray —</span>
+          </div>
+          <button class="action-button" type="button" data-restart="vless">Перезапустить</button>
+        </article>
+      </section>
+
+      <section class="panel resources-panel" aria-labelledby="resources-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">HOST / CAPACITY</p>
+            <h2 id="resources-title">Ресурсы</h2>
+          </div>
+          <span class="panel-index">03</span>
+        </div>
+        <div class="resource-block">
+          <div class="resource-line"><span>Диск /</span><strong id="disk-value">—</strong></div>
+          <div class="meter" aria-hidden="true"><span id="disk-meter"></span></div>
+          <p id="disk-detail">Свободно —</p>
+        </div>
+        <div class="resource-block">
+          <div class="resource-line"><span>Память</span><strong id="memory-value">—</strong></div>
+          <div class="meter" aria-hidden="true"><span id="memory-meter"></span></div>
+          <p id="memory-detail">Доступно —</p>
+        </div>
+      </section>
+
+      <section class="panel clients-panel" aria-labelledby="clients-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">PRECONFIGURED / SECRETS</p>
+            <h2 id="clients-title">Подключения</h2>
+          </div>
+          <span class="panel-index">04</span>
+        </div>
+        <div class="download-list">
+          <a class="download-link" href="/download/wireguard"><span>WireGuard</span><strong>client1.conf</strong></a>
+          <a class="download-link" href="/download/vless"><span>VLESS</span><strong>Ссылка .txt</strong></a>
+          <a class="download-link" href="/download/vless-json"><span>Локальный Xray</span><strong>client1.json</strong></a>
+        </div>
+        <div class="uri-block">
+          <label for="vless-uri">VLESS REALITY URL</label>
+          <textarea id="vless-uri" rows="3" readonly spellcheck="false" placeholder="Ссылка появится после загрузки"></textarea>
+          <button class="action-button primary" id="copy-uri" type="button">Копировать ссылку</button>
+        </div>
+      </section>
+
+      <aside class="panel access-panel" aria-labelledby="access-title">
+        <div class="panel-heading">
+          <div>
+            <p class="section-label">LOOPBACK / PRIVATE</p>
+            <h2 id="access-title">Доступ</h2>
+          </div>
+          <span class="panel-index">05</span>
+        </div>
+        <p>Панель не опубликована в интернете. Соединение действует только внутри вашего SSH-туннеля.</p>
+        <code>127.0.0.1:8080</code>
+        <p class="access-note">Файлы содержат приватные ключи. Не пересылайте их по открытым каналам.</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <span>FREENETVPN-MINI</span>
+    <span>SSH TUNNEL / NO PUBLIC LISTENER</span>
+  </footer>
+  <script src="/app.js" defer></script>
+</body>
+</html>
