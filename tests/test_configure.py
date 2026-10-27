@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 from pathlib import Path
@@ -61,6 +62,37 @@ class ConfigureTests(unittest.TestCase):
         outbound = client["outbounds"][0]
         self.assertEqual(outbound["streamSettings"]["realitySettings"]["publicKey"], state["vless"]["public"])
         self.assertEqual(outbound["settings"]["vnext"][0]["users"][0]["id"], state["vless"]["uuid"])
+
+    def test_reality_keys_use_raw_base64url_and_migrate_legacy_encoding(self):
+        self.configure()
+        state_path = self.root / "data" / "state.json"
+        state = json.loads(state_path.read_text())
+        for field in ("private", "public"):
+            value = state["vless"][field]
+            self.assertNotIn("=", value)
+            self.assertEqual(len(base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))), 32)
+            # Recreate the padded standard-base64 state written by early releases.
+            raw = base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+            state["vless"][field] = base64.b64encode(raw).decode()
+        original_private = base64.b64decode(state["vless"]["private"])
+        original_public = base64.b64decode(state["vless"]["public"])
+        state_path.write_text(json.dumps(state))
+
+        self.configure()
+        migrated = json.loads(state_path.read_text())
+        self.assertNotIn("=", migrated["vless"]["private"])
+        self.assertNotIn("=", migrated["vless"]["public"])
+        self.assertEqual(
+            base64.urlsafe_b64decode(migrated["vless"]["private"] + "=" * (-len(migrated["vless"]["private"]) % 4)),
+            original_private,
+        )
+        self.assertEqual(
+            base64.urlsafe_b64decode(migrated["vless"]["public"] + "=" * (-len(migrated["vless"]["public"]) % 4)),
+            original_public,
+        )
+        server = json.loads((self.root / "runtime" / "xray.json").read_text())
+        reality = server["inbounds"][0]["streamSettings"]["realitySettings"]
+        self.assertEqual(reality["privateKey"], migrated["vless"]["private"])
 
     def test_rejects_invalid_port(self):
         result = subprocess.run(
