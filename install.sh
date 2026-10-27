@@ -108,7 +108,8 @@ if [[ ! -x /usr/local/bin/xray || ! -f data/xray-version || "$(cat data/xray-ver
   rm -rf -- "$stage"
   trap - EXIT
 fi
-/usr/local/bin/xray version | head -n1
+xray_version="$(/usr/local/bin/xray version)"
+printf '%s\n' "${xray_version%%$'\n'*}"
 
 phase=services
 modprobe wireguard
