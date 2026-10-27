@@ -2,7 +2,7 @@
 
 Упрощённая версия [FreeNETvpn](https://github.com/evdokimenkoiv/FreeNETvpn): только **WireGuard** и **VLESS REALITY**, полностью автоматическая настройка и установка одной командой.
 
-В mini-версии нет Docker, Caddy, веб-панели, IKEv2, L2TP, Outline, AmneziaWG, MTProto и дополнительных прокси. WireGuard и Xray работают непосредственно как systemd-сервисы. При установке создаются один WireGuard-пир `client1` и один VLESS-пользователь; домен и TLS-сертификат не нужны.
+В mini-версии нет Docker, Caddy, IKEv2, L2TP, Outline, AmneziaWG, MTProto и дополнительных прокси. WireGuard, Xray и лёгкая панель управления работают непосредственно как systemd-сервисы. При установке создаются один WireGuard-пир `client1`, один VLESS-пользователь и пароль администратора панели; домен и TLS-сертификат не нужны.
 
 ## Требования и минимальные ресурсы
 
@@ -19,7 +19,7 @@
 
 Сам mini-проект ориентировочно добавляет **150–350 МиБ** к базовой системе: Xray, WireGuard tools, зависимости и APT-метаданные. Точный результат зависит от уже установленных пакетов и состояния APT. Временные архивы установщик удаляет. Основной расход диска обычно даёт сама Ubuntu, её обновления и журналы, а не VPN.
 
-Для VPS с 512 МиБ RAM желательно заранее включить swap на 512 МиБ–1 ГиБ, чтобы APT не завершался по OOM. После установки сервисы потребляют заметно меньше памяти, чем полный проект: нет Docker daemon, containerd, базы веб-панели и дополнительных контейнеров.
+Для VPS с 512 МиБ RAM желательно заранее включить swap на 512 МиБ–1 ГиБ, чтобы APT не завершался по OOM. После установки сервисы потребляют заметно меньше памяти, чем полный проект: нет Docker daemon, containerd и дополнительных контейнеров. Панель использует только стандартную библиотеку Python и не требует базы данных.
 
 ## Установка одной командой
 
@@ -32,10 +32,10 @@ sudo bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recomm
 1. определяет публичный IPv4 (можно задать `SERVER_HOST` вручную);
 2. устанавливает только необходимые пакеты и закреплённый Xray `26.3.27`;
 3. проверяет ZIP Xray по SHA-256 из официального `.dgst` релиза;
-4. генерирует постоянные ключи WireGuard и REALITY, UUID и short ID;
-5. настраивает IP forwarding, NAT, UFW и systemd;
-6. проверяет конфигурацию Xray и состояние обоих сервисов;
-7. выводит готовую VLESS-ссылку и путь к WireGuard-профилю.
+4. генерирует постоянные ключи WireGuard и REALITY, UUID, short ID и PBKDF2-хеш пароля панели;
+5. настраивает IP forwarding, NAT, UFW и три systemd-сервиса;
+6. проверяет конфигурацию Xray, состояние VPN и авторизацию панели;
+7. выводит готовую VLESS-ссылку, путь к WireGuard-профилю и одноразовый пароль панели.
 
 Если автоматическое определение адреса не подходит, перед той же командой задайте DNS-имя или IPv4:
 
@@ -43,7 +43,25 @@ sudo bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recomm
 sudo SERVER_HOST=vpn.example.com bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recommends ca-certificates curl; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/install.sh -o "$f"; bash "$f"'
 ```
 
-Проект устанавливается в `/opt/freenetvpn-mini`. Повторный запуск не пересоздаёт ключи и клиентов. Если UFW управляется отдельно, в скачанном проекте используйте `sudo bash install.sh --no-firewall`.
+Проект устанавливается в `/opt/freenetvpn-mini`. Повторный запуск не пересоздаёт ключи, клиентов и пароль панели. Если UFW управляется отдельно, в скачанном проекте используйте `sudo bash install.sh --no-firewall`.
+
+## Панель управления
+
+Панель показывает состояние WG/VLESS, handshake и трафик WireGuard, версию Xray, свободное место и память. Через неё можно скачать все клиентские файлы, скопировать VLESS-ссылку и перезапустить VPN-сервисы.
+
+Она слушает **только `127.0.0.1:8080`** и не требует открытия дополнительного порта. На локальном компьютере создайте SSH-туннель:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 <ssh-user>@ВАШ_СЕРВЕР
+```
+
+Не завершая SSH-сессию, откройте [http://127.0.0.1:8080](http://127.0.0.1:8080). Логин — `admin`. Сгенерированный пароль выводится **один раз** при первой установке. Сбросить его и вывести новый можно командой:
+
+```bash
+sudo python3 /opt/freenetvpn-mini/panel/server.py --reset-password
+```
+
+Пароль хранится как PBKDF2-SHA256-хеш. Панель использует Basic Authentication внутри SSH-туннеля, строгие security headers и проверку Origin для операций перезапуска. Публичный listener намеренно запрещён в коде.
 
 ## Подключение
 
@@ -63,15 +81,15 @@ sudo bash /opt/freenetvpn-mini/scripts/show-clients.sh
 
 ```bash
 sudo bash /opt/freenetvpn-mini/scripts/health.sh
-systemctl status wg-quick@wg0 freenetvpn-xray
-journalctl -u freenetvpn-xray -n 50 --no-pager
+systemctl status wg-quick@wg0 freenetvpn-xray freenetvpn-panel
+journalctl -u freenetvpn-xray -u freenetvpn-panel -n 50 --no-pager
 ```
 
 Основные настройки находятся в `/opt/freenetvpn-mini/.env`, секреты — в `data/state.json`. После изменения `.env` выполните `sudo bash /opt/freenetvpn-mini/install.sh`; клиентские файлы будут перегенерированы с теми же ключами. Для смены адреса сервера достаточно обновить `SERVER_HOST`; для смены ключей следует сознательно восстановить/пересоздать установку, а не удалять отдельные поля состояния.
 
 Для резервной копии сохраните вне сервера каталоги `/opt/freenetvpn-mini/data`, `/opt/freenetvpn-mini/clients` и файл `.env`. Резервная копия содержит все VPN-секреты.
 
-Поддерживается IPv4; IPv6-туннель и веб-интерфейс намеренно не входят в mini. Автоматических обновлений Xray нет: закреплённая версия меняется вместе с кодом репозитория.
+Поддерживается IPv4; IPv6-туннель и публичный веб-интерфейс намеренно не входят в mini. Автоматических обновлений Xray нет: закреплённая версия меняется вместе с кодом репозитория.
 
 ## Лицензия
 

@@ -84,7 +84,9 @@ default_interface="$(ip -4 route show default | awk 'NR==1 {print $5}')"
 [[ -n "$default_interface" ]] || { echo "Не найден default IPv4 route"; exit 1; }
 export WAN_INTERFACE="$default_interface"
 python3 tools/configure.py
+panel_password="$(python3 panel/server.py --init-auth)"
 # Read only installer-generated scalar values, never source the file.
+SERVER_HOST="$(awk -F= '$1=="SERVER_HOST" {print $2}' .env)"
 WG_PORT="$(awk -F= '$1=="WG_PORT" {print $2}' .env)"
 VLESS_PORT="$(awk -F= '$1=="VLESS_PORT" {print $2}' .env)"
 
@@ -118,11 +120,13 @@ install -d -m0755 /etc/xray /etc/wireguard
 install -o root -g xray -m0640 runtime/xray.json /etc/xray/config.json
 install -m0600 runtime/wg0.conf /etc/wireguard/wg0.conf
 install -m0644 systemd/freenetvpn-xray.service /etc/systemd/system/freenetvpn-xray.service
+install -m0644 systemd/freenetvpn-panel.service /etc/systemd/system/freenetvpn-panel.service
 /usr/local/bin/xray run -test -config /etc/xray/config.json
 systemctl daemon-reload
-systemctl enable wg-quick@wg0 freenetvpn-xray
+systemctl enable wg-quick@wg0 freenetvpn-xray freenetvpn-panel
 systemctl restart wg-quick@wg0
 systemctl restart freenetvpn-xray
+systemctl restart freenetvpn-panel
 
 phase=firewall
 if [[ $firewall -eq 1 ]]; then
@@ -141,8 +145,11 @@ fi
 phase=health
 systemctl is-active --quiet wg-quick@wg0
 systemctl is-active --quiet freenetvpn-xray
+systemctl is-active --quiet freenetvpn-panel
 wg show wg0 >/dev/null
 /usr/local/bin/xray run -test -config /etc/xray/config.json >/dev/null
+panel_http="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/)"
+[[ "$panel_http" == 401 ]] || { echo "Панель на loopback вернула HTTP $panel_http вместо 401"; exit 1; }
 
 cat <<EOF
 
@@ -151,6 +158,12 @@ WireGuard-клиент: ${INSTALL_DIR}/clients/wireguard/client1.conf
 VLESS-ссылка:     ${INSTALL_DIR}/clients/vless/client1.txt
 Показать оба:     sudo bash ${INSTALL_DIR}/scripts/show-clients.sh
 Проверить статус: sudo bash ${INSTALL_DIR}/scripts/health.sh
+
+Панель управления (только через SSH-туннель):
+  ssh -L 8080:127.0.0.1:8080 <ssh-user>@${SERVER_HOST}
+  Адрес: http://127.0.0.1:8080
+  Логин: admin
+$(if [[ -n "$panel_password" ]]; then printf '  Новый пароль: %s\n  Сохраните его: повторно автоматически не выводится.\n' "$panel_password"; else printf '  Пароль: используйте созданный ранее.\n  Сброс: sudo python3 %s/panel/server.py --reset-password\n' "$INSTALL_DIR"; fi)
 
 VLESS URL:
 $(cat clients/vless/client1.txt)
