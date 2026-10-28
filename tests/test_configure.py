@@ -2,13 +2,11 @@ import base64
 import json
 import os
 from pathlib import Path
-import secrets
 import stat
 import subprocess
 import tempfile
 import unittest
 from urllib.parse import parse_qs, urlparse
-import uuid
 
 PROJECT = Path(__file__).resolve().parents[1]
 SCRIPT = PROJECT / "tools" / "configure.py"

@@ -250,22 +250,6 @@ h3 { margin: 0 0 2px; font-size: 16px; line-height: 1.4; }
 .action-button.danger:hover { border-color: var(--red); color: var(--red); }
 .empty-state { margin: 0; padding: 24px; color: var(--muted); }
 
-.download-list { padding: 0 24px; }
-.download-link {
-  min-height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-  font-size: 13px;
-  transition: color 150ms ease, padding 150ms ease;
-}
-.download-link strong { color: var(--muted); font-size: 12px; font-weight: 500; text-align: right; }
-.download-link:hover { color: var(--cyan); padding-left: 4px; }
-.download-link:hover strong { color: var(--cyan); }
-
 .uri-block { padding: 24px; }
 .uri-block label { display: block; margin-bottom: 10px; color: var(--muted); font-size: 11px; letter-spacing: 0.1em; }
 textarea {
@@ -308,9 +292,7 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 22px
   .service-stats { padding-left: 24px; }
   .action-button { width: 100%; }
   .panel-heading { padding: 20px; }
-  .download-list, .uri-block { padding-left: 20px; padding-right: 20px; }
-  .download-link { align-items: start; flex-direction: column; justify-content: center; gap: 0; }
-  .download-link strong { text-align: left; }
+  .uri-block { padding-left: 20px; padding-right: 20px; }
   .client-create { grid-template-columns: 1fr; padding: 20px 20px 12px; }
   .form-hint { padding: 0 20px 20px; }
   .client-row { grid-template-columns: 1fr; padding: 18px 20px; gap: 14px; }
