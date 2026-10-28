@@ -96,19 +96,32 @@
       <section class="panel clients-panel" aria-labelledby="clients-title">
         <div class="panel-heading">
           <div>
-            <p class="section-label">PRECONFIGURED / SECRETS</p>
-            <h2 id="clients-title">Подключения</h2>
+            <p class="section-label">CLIENTS / KEYS</p>
+            <h2 id="clients-title">Клиенты и подключения</h2>
           </div>
           <span class="panel-index">04</span>
         </div>
-        <div class="download-list">
-          <a class="download-link" href="/download/wireguard"><span>WireGuard</span><strong>client1.conf</strong></a>
-          <a class="download-link" href="/download/vless"><span>VLESS</span><strong>Ссылка .txt</strong></a>
-          <a class="download-link" href="/download/vless-json"><span>Локальный Xray</span><strong>client1.json</strong></a>
+        <form class="client-create" id="create-client-form">
+          <div class="form-field">
+            <label for="new-client-name">Имя нового клиента</label>
+            <input id="new-client-name" name="name" type="text" maxlength="32" pattern="[a-z0-9][a-z0-9_\-]{0,31}" placeholder="Например, phone" autocomplete="off">
+          </div>
+          <div class="form-field">
+            <label for="new-client-protocol">Протокол</label>
+            <select id="new-client-protocol" name="protocol">
+              <option value="wireguard">WireGuard</option>
+              <option value="vless">VLESS REALITY</option>
+            </select>
+          </div>
+          <button class="action-button primary" id="create-client" type="submit">Создать ключи</button>
+        </form>
+        <p class="form-hint">Без имени будет создан clientN. Допустимы строчные a–z, цифры, дефис и подчёркивание.</p>
+        <div class="client-list" id="client-list" aria-live="polite">
+          <p class="empty-state">Загрузка клиентов…</p>
         </div>
         <div class="uri-block">
-          <label for="vless-uri">VLESS REALITY URL</label>
-          <textarea id="vless-uri" rows="3" readonly spellcheck="false" placeholder="Ссылка появится после загрузки"></textarea>
+          <label for="vless-uri">VLESS REALITY URL ВЫБРАННОГО КЛИЕНТА</label>
+          <textarea id="vless-uri" rows="3" readonly spellcheck="false" placeholder="Нажмите «Копировать» у VLESS-клиента"></textarea>
           <button class="action-button primary" id="copy-uri" type="button">Копировать ссылку</button>
         </div>
       </section>

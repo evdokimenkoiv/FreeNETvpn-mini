@@ -29,7 +29,7 @@ body {
   line-height: 1.6;
 }
 
-button, textarea { font: inherit; }
+button, textarea, input, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
 
@@ -134,8 +134,8 @@ h3 { margin: 0 0 2px; font-size: 16px; line-height: 1.4; }
 
 .services-panel { grid-column: span 8; }
 .resources-panel { grid-column: span 4; }
-.clients-panel { grid-column: span 7; }
-.access-panel { grid-column: span 5; }
+.clients-panel { grid-column: span 12; }
+.access-panel { grid-column: span 12; }
 
 .panel-heading {
   min-height: 90px;
@@ -181,6 +181,10 @@ h3 { margin: 0 0 2px; font-size: 16px; line-height: 1.4; }
 
 .action-button {
   min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   padding: 9px 14px;
   border: 1px solid var(--line);
   border-radius: 0;
@@ -205,6 +209,46 @@ h3 { margin: 0 0 2px; font-size: 16px; line-height: 1.4; }
 .resource-line strong { color: var(--cyan); font-weight: 600; }
 .meter { height: 4px; overflow: hidden; background: var(--line); margin-bottom: 12px; }
 .meter span { display: block; width: 100%; height: 100%; background: var(--cyan); transform: scaleX(0); transform-origin: left; transition: transform 220ms ease-out; }
+
+.client-create {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.5fr) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 24px 24px 12px;
+}
+
+.form-field { display: grid; gap: 8px; }
+.form-field label, .form-hint { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
+.form-field input, .form-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--text);
+  background: var(--bg);
+}
+.form-field input::placeholder { color: var(--muted); }
+.form-hint { margin: 0; padding: 0 24px 20px; }
+
+.client-list { border-top: 1px solid var(--line); }
+.client-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.client-identity { display: grid; gap: 3px; min-width: 0; }
+.client-identity strong { color: var(--text); overflow-wrap: anywhere; }
+.client-identity span { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.client-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.client-actions .action-button { min-height: 40px; padding: 7px 11px; font-size: 11px; }
+.action-button.danger { color: var(--red); }
+.action-button.danger:hover { border-color: var(--red); color: var(--red); }
+.empty-state { margin: 0; padding: 24px; color: var(--muted); }
 
 .download-list { padding: 0 24px; }
 .download-link {
@@ -267,6 +311,11 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 22px
   .download-list, .uri-block { padding-left: 20px; padding-right: 20px; }
   .download-link { align-items: start; flex-direction: column; justify-content: center; gap: 0; }
   .download-link strong { text-align: left; }
+  .client-create { grid-template-columns: 1fr; padding: 20px 20px 12px; }
+  .form-hint { padding: 0 20px 20px; }
+  .client-row { grid-template-columns: 1fr; padding: 18px 20px; gap: 14px; }
+  .client-actions { justify-content: stretch; }
+  .client-actions .action-button { flex: 1 1 calc(50% - 8px); }
   footer { padding: 20px 16px; flex-direction: column; font-size: 9px; }
 }
 

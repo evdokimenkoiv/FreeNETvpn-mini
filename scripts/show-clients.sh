@@ -2,8 +2,22 @@
 set -Eeuo pipefail
 [[ ${EUID} -eq 0 ]] || { echo "Запустите с sudo: файлы содержат приватные ключи"; exit 1; }
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-printf '\n=== WireGuard: импортируйте client1.conf в приложение WireGuard ===\n\n'
-cat "$root/clients/wireguard/client1.conf"
-printf '\n=== VLESS REALITY: импортируйте эту ссылку в совместимый клиент ===\n\n'
-cat "$root/clients/vless/client1.txt"
-printf '\nПолный JSON для локального Xray (SOCKS5 127.0.0.1:1080): %s\n\n' "$root/clients/vless/client1.json"
+shopt -s nullglob
+
+wg_files=("$root"/clients/wireguard/*.conf)
+for file in "${wg_files[@]}"; do
+  printf '\n=== WireGuard: %s ===\n\n' "$(basename "$file")"
+  cat "$file"
+done
+
+vless_files=("$root"/clients/vless/*.txt)
+for file in "${vless_files[@]}"; do
+  printf '\n=== VLESS REALITY: %s ===\n\n' "$(basename "$file")"
+  cat "$file"
+done
+
+if (( ${#wg_files[@]} == 0 && ${#vless_files[@]} == 0 )); then
+  printf 'Клиентские конфигурации не найдены. Запустите install.sh или создайте клиента в панели.\n'
+  exit 1
+fi
+printf '\nJSON-профили VLESS находятся в %s/clients/vless/*.json\n\n' "$root"
