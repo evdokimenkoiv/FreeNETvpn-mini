@@ -28,6 +28,8 @@ STATIC_ROOT = Path(__file__).resolve().parent / "static"
 AUTH_ITERATIONS = 600_000
 SERVICES = {"wireguard": "wg-quick@wg0", "vless": "freenetvpn-xray"}
 MAX_CLIENTS = 100
+MAX_AUTH_HEADER = 4096
+REQUEST_TIMEOUT = 30
 STATE_LOCK = threading.Lock()
 
 
@@ -271,6 +273,14 @@ def mutate_client(root, etc_root, protocol, action, requested_name=""):
             else:
                 client.update({"uuid": str(uuid.uuid4()), "short_id": secrets.token_hex(8)})
         configure.save_configuration(root, config, state)
+        if protocol == "vless" and etc_root == Path("/etc"):
+            check = command(
+                "/usr/local/bin/xray", "run", "-test", "-config",
+                str(root / "runtime" / "xray.json"), timeout=20,
+            )
+            if check.returncode != 0:
+                message = (check.stderr or check.stdout or "Xray rejected the configuration").strip()[-500:]
+                raise RuntimeError(f"Проверка конфигурации Xray не пройдена: {message}")
         install_runtime(root, etc_root, protocol)
     restart_ok, restart_status = restart_service(protocol)
     return {
@@ -297,12 +307,16 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "FreeNETvpn-mini"
     sys_version = ""
 
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(REQUEST_TIMEOUT)
+
     def log_message(self, fmt, *args):
         print(f"{self.client_address[0]} {self.command} {urlsplit(self.path).path}", flush=True)
 
     def authorized(self):
         header = self.headers.get("Authorization", "")
-        if not header.startswith("Basic "):
+        if len(header) > MAX_AUTH_HEADER or not header.startswith("Basic "):
             return False
         try:
             decoded = base64.b64decode(header[6:], validate=True).decode()
@@ -317,6 +331,14 @@ class Handler(BaseHTTPRequestHandler):
             return True
         self.send_bytes(401, b"Authentication required\n", "text/plain; charset=utf-8",
                         {"WWW-Authenticate": 'Basic realm="FreeNETvpn-mini", charset="UTF-8"'})
+        return False
+
+    def require_host(self):
+        port = self.server.server_port
+        allowed = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        if self.headers.get("Host", "") in allowed:
+            return True
+        self.send_json(421, {"error": "Invalid Host header"})
         return False
 
     def send_bytes(self, code, content, content_type, extra=None):
@@ -352,6 +374,7 @@ class Handler(BaseHTTPRequestHandler):
     def same_origin(self):
         allowed_origins = {
             f"http://127.0.0.1:{self.server.server_port}", f"http://localhost:{self.server.server_port}",
+            f"http://[::1]:{self.server.server_port}",
         }
         origin = self.headers.get("Origin")
         fetch_site = self.headers.get("Sec-Fetch-Site", "same-origin")
@@ -367,7 +390,7 @@ class Handler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):
-        if not self.require_auth():
+        if not self.require_host() or not self.require_auth():
             return
         parsed = urlsplit(self.path)
         path = parsed.path
@@ -403,7 +426,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(404, {"error": "Not found"})
 
     def do_POST(self):
-        if not self.require_auth():
+        if not self.require_host() or not self.require_auth():
             return
         path = urlsplit(self.path).path
         if path not in {"/api/restart", "/api/clients"}:

@@ -11,7 +11,7 @@ INSTALL_DIR=/opt/freenetvpn-mini
 work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
 mkdir "$work/source"
-curl --fail --location --retry 3 --connect-timeout 15 \
+curl --http1.1 --fail --location --retry 3 --retry-all-errors --connect-timeout 15 \
   https://api.github.com/repos/evdokimenkoiv/FreeNETvpn-mini/tarball/main \
   -o "$work/project.tar.gz"
 tar --extract --gzip --file "$work/project.tar.gz" --strip-components=1 \

@@ -12,6 +12,7 @@
 - Скачивание WireGuard-профилей, VLESS JSON и копирование VLESS-ссылок.
 - Статусы сервисов, handshake и трафик WireGuard, диск и память.
 - Сохранение ключей, клиентов, настроек и пароля при повторной установке или обновлении.
+- Временная фильтрация IPv4 Options для снижения риска CVE-2026-98432 до установки исправленного ядра.
 
 ## Требования
 
@@ -33,7 +34,7 @@
 Выполните на сервере:
 
 ```bash
-sudo bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recommends ca-certificates curl; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/install.sh -o "$f"; bash "$f"'
+sudo bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recommends ca-certificates curl; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl --http1.1 -fsSL --retry 3 --retry-all-errors --connect-timeout 15 https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/install.sh -o "$f"; bash "$f"'
 ```
 
 Установщик проверит систему и свободное место, установит необходимые пакеты и закреплённую версию Xray, проверит её SHA-256, создаст ключи и клиентские профили, настроит UFW и запустит сервисы. В конце будут показаны данные первого подключения и пароль панели — сохраните их.
@@ -45,10 +46,10 @@ sudo bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recomm
 Если публичный IPv4 определяется неправильно или используется DNS-имя:
 
 ```bash
-sudo SERVER_HOST=vpn.example.com bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recommends ca-certificates curl; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/install.sh -o "$f"; bash "$f"'
+sudo SERVER_HOST=vpn.example.com bash -c 'set -e; apt-get update -qq; apt-get install -y --no-install-recommends ca-certificates curl; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl --http1.1 -fsSL --retry 3 --retry-all-errors --connect-timeout 15 https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/install.sh -o "$f"; bash "$f"'
 ```
 
-Если UFW управляется отдельно, после установки можно повторно применить конфигурацию без изменения firewall:
+Если UFW управляется отдельно, после установки можно повторно применить конфигурацию без изменения правил UFW. Отдельная защита `freenetvpn-network-guard` при этом сохраняется:
 
 ```bash
 sudo bash /opt/freenetvpn-mini/install.sh --no-firewall
@@ -133,12 +134,23 @@ sudo python3 /opt/freenetvpn-mini/panel/server.py --reset-password
 На сервере с существующей установкой:
 
 ```bash
-sudo bash -c 'set -e; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/scripts/update.sh -o "$f"; bash "$f"'
+sudo bash -c 'set -e; f=$(mktemp); trap "rm -f -- \"$f\"" EXIT; curl --http1.1 -fsSL --retry 3 --retry-all-errors --connect-timeout 15 https://raw.githubusercontent.com/evdokimenkoiv/FreeNETvpn-mini/main/scripts/update.sh -o "$f"; bash "$f"'
 ```
 
 Команда загружает актуальный код и повторно применяет конфигурацию. Каталог `data`, файл `.env`, клиенты, ключи и пароль панели сохраняются. Во время перезапуска сервисов VPN-подключения могут ненадолго прерваться.
 
 После обновления откройте панель заново или нажмите **Ctrl+F5**.
+
+### Обновление Ubuntu и ядра
+
+Обновление проекта не заменяет обновление операционной системы. Установите системные исправления отдельно:
+
+```bash
+sudo apt-get update
+sudo apt-get -y full-upgrade
+```
+
+Если появился файл `/var/run/reboot-required`, перезагрузите сервер: `sudo reboot`. После перезагрузки выполните `sudo bash /opt/freenetvpn-mini/scripts/health.sh`.
 
 ## Настройки
 
@@ -156,15 +168,15 @@ sudo bash /opt/freenetvpn-mini/install.sh
 
 ```bash
 sudo bash /opt/freenetvpn-mini/scripts/health.sh
-systemctl status wg-quick@wg0 freenetvpn-xray freenetvpn-panel
-journalctl -u freenetvpn-xray -u freenetvpn-panel -n 50 --no-pager
+systemctl status freenetvpn-network-guard wg-quick@wg0 freenetvpn-xray freenetvpn-panel
+journalctl -u freenetvpn-network-guard -u freenetvpn-xray -u freenetvpn-panel -n 50 --no-pager
 ```
 
 При проблемах с подключением проверьте:
 
 1. Открыты ли UDP-порт WireGuard и TCP-порт VLESS на провайдерском firewall.
 2. Совпадает ли `SERVER_HOST` в клиентском профиле с публичным адресом сервера.
-3. Активны ли все три systemd-сервиса.
+3. Активны ли все четыре systemd-сервиса.
 4. Не перехватываются ли VPN-порты другим приложением или HTTP-прокси.
 
 ## Данные и безопасность
@@ -174,6 +186,10 @@ journalctl -u freenetvpn-xray -u freenetvpn-panel -n 50 --no-pager
 - WireGuard и VLESS REALITY не требуют домена и собственного SSL/TLS-сертификата.
 - Каталоги `data`, `clients` и файл `.env` содержат секреты и не входят в репозиторий.
 - Для резервной копии сохраните их на отдельном защищённом носителе.
+- Xray обновляется до версии с отключённым MPTCP; в unit-файле дополнительно установлено `GODEBUG=multipathtcp=0`.
+- Сервис `freenetvpn-network-guard` отбрасывает входящие TCP-пакеты с дополнительными IPv4 Options — это снижает риск [CVE-2026-98432](https://ubuntu.com/security/CVE-2026-98432), но не заменяет исправление ядра. Обычные TCP Options не затрагиваются.
+
+После того как Canonical отметит используемое ядро как исправленное, установите обновление Ubuntu и перезагрузитесь. До этого не отключайте `freenetvpn-network-guard` только на основании обновления Xray. После установки исправленного ядра фильтр можно оставить включённым — он не мешает обычным соединениям.
 
 ## Проверка кода
 

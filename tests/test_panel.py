@@ -73,6 +73,12 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(len(data["clientLists"]["wireguard"]), 1)
         self.assertEqual(data["clientLists"]["wireguard"][0]["address"], "10.8.0.2/32")
 
+    def test_rejects_invalid_host_and_oversized_auth(self):
+        status, _, _ = self.request("GET", "/", headers={"Host": "attacker.invalid"})
+        self.assertEqual(status, 421)
+        status, _, _ = self.request("GET", "/", headers={"Authorization": "Basic " + "A" * 5000})
+        self.assertEqual(status, 401)
+
     def test_download_and_static_page(self):
         status, _, content = self.request("GET", "/")
         self.assertEqual(status, 200)

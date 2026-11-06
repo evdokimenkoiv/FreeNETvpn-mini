@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=xray
 Group=xray
+Environment=GODEBUG=multipathtcp=0
 ExecStart=/usr/local/bin/xray run -config /etc/xray/config.json
 Restart=on-failure
 RestartSec=3s
@@ -23,6 +24,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 LimitNOFILE=1048576
 
 [Install]

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 INSTALL_DIR=/opt/freenetvpn-mini
-XRAY_VERSION=26.3.27
+XRAY_VERSION=26.10.31
 MIN_FREE_MB=1024
 phase=bootstrap
 
@@ -48,7 +48,7 @@ if [[ ! -f "${source_dir}/tools/configure.py" ]]; then
   stage="$(mktemp -d "${INSTALL_DIR}.download.XXXXXX")"
   archive="$(mktemp)"
   trap 'rm -f -- "$archive"; rm -rf -- "$stage"' EXIT
-  curl --fail --location --retry 3 --connect-timeout 15 \
+  curl --http1.1 --fail --location --retry 3 --retry-all-errors --connect-timeout 15 \
     "https://api.github.com/repos/evdokimenkoiv/FreeNETvpn-mini/tarball/${ref}" -o "$archive"
   tar --extract --gzip --file "$archive" --strip-components=1 --directory "$stage" --no-same-owner
   [[ -f "$stage/tools/configure.py" && -f "$stage/install.sh" ]] || { echo "Неполный архив проекта"; exit 1; }
@@ -76,7 +76,7 @@ free_mb="$(df -Pk / | awk 'NR==2 {print int($4/1024)}')"
 phase=packages
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-  python3 openssl ca-certificates curl unzip wireguard-tools iptables iproute2 ufw
+  python3 openssl ca-certificates curl unzip wireguard-tools iptables iproute2 ufw nftables
 apt-get clean
 
 phase=configuration
@@ -95,9 +95,11 @@ if [[ ! -x /usr/local/bin/xray || ! -f data/xray-version || "$(cat data/xray-ver
   stage="$(mktemp -d)"
   trap 'rm -rf -- "$stage"' EXIT
   base="https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}"
-  curl --fail --location --retry 3 --connect-timeout 15 "$base/Xray-linux-64.zip" -o "$stage/xray.zip"
-  curl --fail --location --retry 3 --connect-timeout 15 "$base/Xray-linux-64.zip.dgst" -o "$stage/xray.dgst"
-  expected="$(grep -iE '^(SHA256|SHA2-256)' "$stage/xray.dgst" | grep -Eo '[0-9a-fA-F]{64}' | head -n1)"
+  curl --http1.1 --fail --location --retry 3 --retry-all-errors --connect-timeout 15 \
+    "$base/Xray-linux-64.zip" -o "$stage/xray.zip"
+  curl --http1.1 --fail --location --retry 3 --retry-all-errors --connect-timeout 15 \
+    "$base/Xray-linux-64.zip.dgst" -o "$stage/xray.dgst"
+  expected="$(awk 'tolower($0) ~ /^(sha256|sha2-256)/ { if (match($0, /[0-9a-fA-F]{64}/)) { print substr($0, RSTART, RLENGTH); exit } }' "$stage/xray.dgst")"
   [[ "$expected" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "Не найден SHA-256 в официальном .dgst"; exit 1; }
   actual="$(sha256sum "$stage/xray.zip" | awk '{print $1}')"
   [[ "${actual,,}" == "${expected,,}" ]] || { echo "SHA-256 Xray не совпал"; exit 1; }
@@ -122,9 +124,11 @@ install -o root -g xray -m0640 runtime/xray.json /etc/xray/config.json
 install -m0600 runtime/wg0.conf /etc/wireguard/wg0.conf
 install -m0644 systemd/freenetvpn-xray.service /etc/systemd/system/freenetvpn-xray.service
 install -m0644 systemd/freenetvpn-panel.service /etc/systemd/system/freenetvpn-panel.service
+install -m0644 systemd/freenetvpn-network-guard.service /etc/systemd/system/freenetvpn-network-guard.service
 /usr/local/bin/xray run -test -config /etc/xray/config.json
 systemctl daemon-reload
-systemctl enable wg-quick@wg0 freenetvpn-xray freenetvpn-panel
+systemctl enable freenetvpn-network-guard wg-quick@wg0 freenetvpn-xray freenetvpn-panel
+systemctl restart freenetvpn-network-guard
 systemctl restart wg-quick@wg0
 systemctl restart freenetvpn-xray
 systemctl restart freenetvpn-panel
@@ -144,6 +148,8 @@ if [[ $firewall -eq 1 ]]; then
 fi
 
 phase=health
+systemctl is-active --quiet freenetvpn-network-guard
+nft list table inet freenetvpn_security >/dev/null
 systemctl is-active --quiet wg-quick@wg0
 systemctl is-active --quiet freenetvpn-xray
 systemctl is-active --quiet freenetvpn-panel

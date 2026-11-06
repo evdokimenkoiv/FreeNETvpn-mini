@@ -1,0 +1,15 @@
+[Unit]
+Description=FreeNETvpn-mini CVE-2026-98432 network mitigation
+After=network-pre.target nftables.service
+Wants=network-pre.target
+PartOf=nftables.service
+Before=freenetvpn-xray.service wg-quick@wg0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/freenetvpn-mini/scripts/network-guard.sh start
+ExecStop=/usr/bin/bash /opt/freenetvpn-mini/scripts/network-guard.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

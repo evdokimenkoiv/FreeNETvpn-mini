@@ -2,7 +2,8 @@
 set -Eeuo pipefail
 [[ ${EUID} -eq 0 ]] || { echo "Запустите с sudo"; exit 1; }
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-systemctl is-active wg-quick@wg0 freenetvpn-xray freenetvpn-panel
+systemctl is-active freenetvpn-network-guard wg-quick@wg0 freenetvpn-xray freenetvpn-panel
+nft list table inet freenetvpn_security
 wg show wg0
 /usr/local/bin/xray run -test -config /etc/xray/config.json
 panel_http="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/)"
