@@ -79,6 +79,21 @@ class PanelTests(unittest.TestCase):
         status, _, _ = self.request("GET", "/", headers={"Authorization": "Basic " + "A" * 5000})
         self.assertEqual(status, 401)
 
+    def test_accepts_alternative_loopback_tunnel_port(self):
+        headers = {"Host": "127.0.0.1:18080"}
+        status, _, _ = self.request("GET", "/", headers=headers)
+        self.assertEqual(status, 200)
+        with patch("panel.server.restart_service", return_value=(True, "active")):
+            status, _, _ = self.request(
+                "POST", "/api/restart", body=json.dumps({"service": "vless"}),
+                headers={
+                    **headers,
+                    "Content-Type": "application/json",
+                    "Origin": "http://127.0.0.1:18080",
+                },
+            )
+            self.assertEqual(status, 200)
+
     def test_download_and_static_page(self):
         status, _, content = self.request("GET", "/")
         self.assertEqual(status, 200)

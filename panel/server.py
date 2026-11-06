@@ -10,6 +10,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import subprocess
@@ -30,6 +31,7 @@ SERVICES = {"wireguard": "wg-quick@wg0", "vless": "freenetvpn-xray"}
 MAX_CLIENTS = 100
 MAX_AUTH_HEADER = 4096
 REQUEST_TIMEOUT = 30
+LOOPBACK_AUTHORITY_RE = re.compile(r"(?:127\.0\.0\.1|localhost|\[::1\])(?::([0-9]{1,5}))?")
 STATE_LOCK = threading.Lock()
 
 
@@ -333,10 +335,16 @@ class Handler(BaseHTTPRequestHandler):
                         {"WWW-Authenticate": 'Basic realm="FreeNETvpn-mini", charset="UTF-8"'})
         return False
 
+    @staticmethod
+    def valid_loopback_authority(value):
+        match = LOOPBACK_AUTHORITY_RE.fullmatch(value)
+        if not match:
+            return False
+        port = match.group(1)
+        return port is None or 1 <= int(port) <= 65535
+
     def require_host(self):
-        port = self.server.server_port
-        allowed = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
-        if self.headers.get("Host", "") in allowed:
+        if self.valid_loopback_authority(self.headers.get("Host", "")):
             return True
         self.send_json(421, {"error": "Invalid Host header"})
         return False
@@ -372,13 +380,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_bytes(200, content, content_type, extra)
 
     def same_origin(self):
-        allowed_origins = {
-            f"http://127.0.0.1:{self.server.server_port}", f"http://localhost:{self.server.server_port}",
-            f"http://[::1]:{self.server.server_port}",
-        }
         origin = self.headers.get("Origin")
+        origin_ok = not origin or (
+            origin.startswith("http://") and self.valid_loopback_authority(origin[7:])
+        )
         fetch_site = self.headers.get("Sec-Fetch-Site", "same-origin")
-        return (not origin or origin in allowed_origins) and fetch_site in {"same-origin", "none"}
+        return origin_ok and fetch_site in {"same-origin", "none"}
 
     def read_json(self):
         length = int(self.headers.get("Content-Length", "0"))
